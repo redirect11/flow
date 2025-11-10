@@ -20,17 +20,27 @@ class WindowsClipboard:
     @staticmethod
     def data():
         """
-        Returns clipboard data.
+        Returns clipboard data with proper error handling.
         """
-        win32clipboard.OpenClipboard()
         try:
+            win32clipboard.OpenClipboard()
             try:
-                data = win32clipboard.GetClipboardData()
-            except TypeError:
-                data = win32clipboard.GetClipboardData(win32clipboard.CF_HDROP)
-        except TypeError:
-            data = 'unknown format'
-        win32clipboard.CloseClipboard()
+                try:
+                    data = win32clipboard.GetClipboardData()
+                except TypeError:
+                    try:
+                        data = win32clipboard.GetClipboardData(win32clipboard.CF_HDROP)
+                    except:
+                        data = 'unknown format'
+            except Exception:
+                # Clipboard access error, return None
+                data = None
+            finally:
+                win32clipboard.CloseClipboard()
+        except Exception:
+            # Cannot open clipboard (access denied, etc.)
+            data = None
+        
         return data
 
     @staticmethod
