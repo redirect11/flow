@@ -79,16 +79,20 @@ def create():
                 {Settings.IP} text,
                 {Settings.PASS} text,
                 {Settings.PC} integer,
-                {Settings.ENCRYPTION} integer
+                {Settings.ENCRYPTION} integer,
+                {Settings.KEYBOARD_LAYOUT} text,
+                {Settings.LAYOUT_AUTO_DETECT} integer
         )'''
     )
 
-    sql_exec("INSERT INTO settings VALUES (?, ?, ?, ?)",
+    sql_exec("INSERT INTO settings VALUES (?, ?, ?, ?, ?, ?)",
              (
                  DEFAULTS[Settings.IP],
                  DEFAULTS[Settings.PASS],
                  DEFAULTS[Settings.PC],
                  DEFAULTS[Settings.ENCRYPTION],
+                 DEFAULTS[Settings.KEYBOARD_LAYOUT],
+                 DEFAULTS[Settings.LAYOUT_AUTO_DETECT],
              )
              )
 
@@ -203,6 +207,27 @@ def update_screen(attachments, address):
     )
 
 
+def upgrade_database():
+    """
+    Upgrades existing database to include new keyboard layout columns.
+    """
+    try:
+        # Check if keyboard layout columns exist
+        sql_exec(f"SELECT {Settings.KEYBOARD_LAYOUT} FROM settings LIMIT 1")
+        sql_exec(f"SELECT {Settings.LAYOUT_AUTO_DETECT} FROM settings LIMIT 1")
+    except sqlite3.OperationalError:
+        # Columns don't exist, add them
+        try:
+            sql_exec(f"ALTER TABLE settings ADD COLUMN {Settings.KEYBOARD_LAYOUT} text DEFAULT '{DEFAULTS[Settings.KEYBOARD_LAYOUT]}'")
+        except sqlite3.OperationalError:
+            pass  # Column might already exist
+        
+        try:
+            sql_exec(f"ALTER TABLE settings ADD COLUMN {Settings.LAYOUT_AUTO_DETECT} integer DEFAULT {DEFAULTS[Settings.LAYOUT_AUTO_DETECT]}")
+        except sqlite3.OperationalError:
+            pass  # Column might already exist
+
+
 def remove_screen(address):
     """
     Removes screen from screens table.
@@ -217,3 +242,6 @@ def remove_screen(address):
 
 if not os.path.isfile(DATABASE):
     create()
+else:
+    # Database exists, check if it needs upgrading
+    upgrade_database()
