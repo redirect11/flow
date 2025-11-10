@@ -129,7 +129,14 @@ class ControlledDevices:
                 data = data.split(" ")
 
             cmd_type = data[0]
-            action = (data[1], data[2])
+            
+            # Only extract action if we have enough elements
+            if len(data) >= 3:
+                action = (data[1], data[2])
+            elif len(data) >= 2:
+                action = (data[1],)
+            else:
+                action = ()
 
             if cmd_type == "mov":
                 x_pos, y_pos = action
