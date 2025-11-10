@@ -90,7 +90,6 @@ def create_layout_aware_key_data(pynput_key, physical_code=None):
     Returns a dictionary containing both physical and logical key information.
     """
     layout_manager = get_layout_manager()
-    key_info = layout_manager.create_key_info(pynput_key, physical_code)
     
     # For special keys, use the existing mapping
     if hasattr(pynput_key, 'name'):
@@ -102,13 +101,19 @@ def create_layout_aware_key_data(pynput_key, physical_code=None):
             'layout_type': layout_manager.current_layout.layout_type.value
         }
     else:
-        # For character keys, include layout information
+        # For character keys, include layout information and dead key handling
+        char = pynput_key.char if hasattr(pynput_key, 'char') and pynput_key.char else str(pynput_key)
+        
+        # Check if this is a dead key
+        is_dead = layout_manager.is_dead_key(char)
+        
         key_type = 'character'
         key_data = {
             'type': key_type,
             'physical_code': physical_code or 0,
-            'logical_char': key_info.logical_char,
-            'key_name': key_info.key_name,
+            'logical_char': char,
+            'is_dead_key': is_dead,
+            'key_name': f"KEY_{char.upper()}" if char.isalpha() else "KEY_SPECIAL",
             'layout_type': layout_manager.current_layout.layout_type.value,
             'language_code': layout_manager.current_layout.language_code,
             'country_code': layout_manager.current_layout.country_code
@@ -120,8 +125,9 @@ def create_layout_aware_key_data(pynput_key, physical_code=None):
 def key_from_layout_aware_data(key_data, target_layout_type=None):
     """
     Convert layout-aware key data back to pynput Key or character.
-    Handles layout conversion if target layout is different from source.
+    Handles layout conversion and dead key processing.
     """
+    from pynput import keyboard
     layout_manager = get_layout_manager()
     
     if key_data['type'] == 'special':
@@ -136,17 +142,35 @@ def key_from_layout_aware_data(key_data, target_layout_type=None):
         source_layout = LayoutType(key_data['layout_type'])
         target_layout = target_layout_type or layout_manager.current_layout.layout_type
         
-        if source_layout == target_layout:
-            # Same layout, use original character
-            return key_data['logical_char']
+        char = key_data['logical_char']
+        
+        # Check if this is a dead key
+        if key_data.get('is_dead_key', False):
+            # Process dead key input
+            result = layout_manager.process_key_input(char)
+            if result and result != char:
+                # Dead key was resolved to an accented character
+                return keyboard.KeyCode.from_char(result)
+            else:
+                # Still a pending dead key or unresolved
+                return keyboard.KeyCode.from_char(char)
         else:
-            # Different layouts, convert using physical key mapping
-            converted_char = layout_manager.convert_key_between_layouts(
-                key_data['logical_char'], 
-                source_layout, 
-                target_layout
-            )
-            return converted_char
+            # Regular character - convert layout if needed
+            if source_layout == target_layout:
+                # Same layout, use original character
+                converted_char = char
+            else:
+                # Different layouts, convert using physical key mapping
+                converted_char = layout_manager.convert_key_between_layouts(
+                    char, 
+                    source_layout, 
+                    target_layout
+                )
+            
+            # Also process for dead key resolution (in case there's a pending dead key)
+            final_char = layout_manager.process_key_input(converted_char)
+            
+            return keyboard.KeyCode.from_char(final_char or converted_char)
     
     return None
 
@@ -162,3 +186,42 @@ def set_target_layout(layout_type):
     # This could be stored in a global variable or configuration
     # For now, it's just a placeholder for future implementation
     pass
+
+
+def test_dead_key_support():
+    """Test dead key functionality with Italian layout"""
+    layout_manager = get_layout_manager()
+    
+    # Test various dead key combinations
+    test_sequences = [
+        ('`', 'a'),  # Should produce à
+        ('`', 'e'),  # Should produce è
+        ('`', 'i'),  # Should produce ì
+        ('`', 'o'),  # Should produce ò
+        ('`', 'u'),  # Should produce ù
+        ("'", 'a'),  # Should produce á
+        ("'", 'e'),  # Should produce é
+        ("'", 'i'),  # Should produce í
+        ("'", 'o'),  # Should produce ó
+        ("'", 'u'),  # Should produce ú
+        ('^', 'a'),  # Should produce â
+        ('^', 'e'),  # Should produce ê
+        ('^', 'i'),  # Should produce î
+        ('^', 'o'),  # Should produce ô
+        ('^', 'u'),  # Should produce û
+    ]
+    
+    print("Testing Italian dead key support:")
+    for dead_key, base_char in test_sequences:
+        # First input the dead key
+        result1 = layout_manager.process_key_input(dead_key)
+        # Then input the base character
+        result2 = layout_manager.process_key_input(base_char)
+        
+        if result2 and result2 != base_char:
+            print(f"  {dead_key} + {base_char} = {result2} ✓")
+        else:
+            print(f"  {dead_key} + {base_char} = {base_char} (no composition)")
+    
+    print(f"\nCurrent layout: {layout_manager.current_layout.layout_type.value}")
+    print(f"Language code: {layout_manager.current_layout.language_code}")

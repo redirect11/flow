@@ -96,7 +96,31 @@ class VirtualClipboard:
 
         else:
             self._received = True
-            Clipboard.set_text(content)
+            try:
+                Clipboard.set_text(content)
+            except (UnicodeEncodeError, UnicodeDecodeError) as e:
+                # Handle Unicode encoding errors
+                print(f"Clipboard encoding error: {e}")
+                # Try to clean the content by replacing problematic characters
+                try:
+                    if isinstance(content, bytes):
+                        # If content is bytes, decode it properly
+                        clean_content = content.decode('utf-8', errors='replace')
+                    else:
+                        # If content is string, encode and decode to clean it
+                        clean_content = content.encode('utf-8', errors='replace').decode('utf-8')
+                    
+                    Clipboard.set_text(clean_content)
+                except Exception as fallback_error:
+                    print(f"Clipboard fallback error: {fallback_error}")
+                    # Last resort: ASCII-only content
+                    ascii_content = str(content).encode('ascii', errors='replace').decode('ascii')
+                    try:
+                        Clipboard.set_text(ascii_content)
+                    except Exception:
+                        print("Failed to set clipboard content - skipping")
+            except Exception as e:
+                print(f"General clipboard error: {e}")
 
     def on_change(self, clip_content):
         """

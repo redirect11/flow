@@ -6,7 +6,7 @@ and their representations across different systems.
 
 import sys
 import platform
-from typing import Dict, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any, List
 from dataclasses import dataclass
 from enum import Enum
 import locale
@@ -23,12 +23,21 @@ class LayoutType(Enum):
     """Common keyboard layout types"""
     QWERTY_US = "qwerty_us"
     QWERTY_UK = "qwerty_uk"
+    QWERTY_IT = "qwerty_it"
     AZERTY_FR = "azerty_fr"
     QWERTZ_DE = "qwertz_de"
     QWERTZ_CH = "qwertz_ch"
     DVORAK = "dvorak"
     COLEMAK = "colemak"
     UNKNOWN = "unknown"
+
+
+@dataclass
+class DeadKeySequence:
+    """Represents a dead key + character sequence"""
+    dead_key: str       # The dead key character (`, ', ^, ~, ")
+    base_char: str      # The base character (a, e, i, o, u, etc.)
+    result_char: str    # The resulting accented character (à, é, î, õ, ü, etc.)
 
 
 @dataclass
@@ -59,7 +68,60 @@ class KeyboardLayoutManager:
         self.current_layout: Optional[LayoutInfo] = None
         self.layout_maps = self._initialize_layout_maps()
         self.physical_key_names = self._initialize_physical_keys()
+        self.dead_key_combinations = self._initialize_dead_key_combinations()
+        self.pending_dead_key: Optional[str] = None  # Track pending dead key
         self._detect_current_layout()
+    
+    def _initialize_dead_key_combinations(self) -> Dict[LayoutType, List[DeadKeySequence]]:
+        """Initialize dead key combinations for different layouts"""
+        return {
+            LayoutType.QWERTY_IT: [
+                # Grave accent (`)
+                DeadKeySequence('`', 'a', 'à'), DeadKeySequence('`', 'e', 'è'),
+                DeadKeySequence('`', 'i', 'ì'), DeadKeySequence('`', 'o', 'ò'),
+                DeadKeySequence('`', 'u', 'ù'),
+                DeadKeySequence('`', 'A', 'À'), DeadKeySequence('`', 'E', 'È'),
+                DeadKeySequence('`', 'I', 'Ì'), DeadKeySequence('`', 'O', 'Ò'),
+                DeadKeySequence('`', 'U', 'Ù'),
+                
+                # Acute accent (')
+                DeadKeySequence("'", 'a', 'á'), DeadKeySequence("'", 'e', 'é'),
+                DeadKeySequence("'", 'i', 'í'), DeadKeySequence("'", 'o', 'ó'),
+                DeadKeySequence("'", 'u', 'ú'),
+                DeadKeySequence("'", 'A', 'Á'), DeadKeySequence("'", 'E', 'É'),
+                DeadKeySequence("'", 'I', 'Í'), DeadKeySequence("'", 'O', 'Ó'),
+                DeadKeySequence("'", 'U', 'Ú'),
+                
+                # Circumflex (^)
+                DeadKeySequence('^', 'a', 'â'), DeadKeySequence('^', 'e', 'ê'),
+                DeadKeySequence('^', 'i', 'î'), DeadKeySequence('^', 'o', 'ô'),
+                DeadKeySequence('^', 'u', 'û'),
+                DeadKeySequence('^', 'A', 'Â'), DeadKeySequence('^', 'E', 'Ê'),
+                DeadKeySequence('^', 'I', 'Î'), DeadKeySequence('^', 'O', 'Ô'),
+                DeadKeySequence('^', 'U', 'Û'),
+                
+                # Tilde (~)
+                DeadKeySequence('~', 'a', 'ã'), DeadKeySequence('~', 'n', 'ñ'),
+                DeadKeySequence('~', 'o', 'õ'),
+                DeadKeySequence('~', 'A', 'Ã'), DeadKeySequence('~', 'N', 'Ñ'),
+                DeadKeySequence('~', 'O', 'Õ'),
+                
+                # Diaeresis/Umlaut (")
+                DeadKeySequence('"', 'a', 'ä'), DeadKeySequence('"', 'e', 'ë'),
+                DeadKeySequence('"', 'i', 'ï'), DeadKeySequence('"', 'o', 'ö'),
+                DeadKeySequence('"', 'u', 'ü'),
+                DeadKeySequence('"', 'A', 'Ä'), DeadKeySequence('"', 'E', 'Ë'),
+                DeadKeySequence('"', 'I', 'Ï'), DeadKeySequence('"', 'O', 'Ö'),
+                DeadKeySequence('"', 'U', 'Ü'),
+            ],
+            # Add other layouts here as needed
+            LayoutType.AZERTY_FR: [
+                # French dead keys...
+                DeadKeySequence('^', 'a', 'â'), DeadKeySequence('^', 'e', 'ê'),
+                DeadKeySequence('^', 'i', 'î'), DeadKeySequence('^', 'o', 'ô'),
+                DeadKeySequence('^', 'u', 'û'),
+            ]
+        }
     
     def _initialize_layout_maps(self) -> Dict[LayoutType, Dict[str, str]]:
         """Initialize mapping tables for different keyboard layouts"""
@@ -95,6 +157,29 @@ class KeyboardLayoutManager:
                 # Numbers produce symbols on AZERTY
                 'KEY_1': '&', 'KEY_2': 'é', 'KEY_3': '"', 'KEY_4': "'", 'KEY_5': '(',
                 'KEY_6': '-', 'KEY_7': 'è', 'KEY_8': '_', 'KEY_9': 'ç', 'KEY_0': 'à',
+            },
+            LayoutType.QWERTY_IT: {
+                # Mapping for Italian QWERTY layout with dead keys support
+                'KEY_Q': 'q', 'KEY_W': 'w', 'KEY_E': 'e', 'KEY_R': 'r', 'KEY_T': 't',
+                'KEY_Y': 'y', 'KEY_U': 'u', 'KEY_I': 'i', 'KEY_O': 'o', 'KEY_P': 'p',
+                'KEY_A': 'a', 'KEY_S': 's', 'KEY_D': 'd', 'KEY_F': 'f', 'KEY_G': 'g',
+                'KEY_H': 'h', 'KEY_J': 'j', 'KEY_K': 'k', 'KEY_L': 'l',
+                'KEY_Z': 'z', 'KEY_X': 'x', 'KEY_C': 'c', 'KEY_V': 'v', 'KEY_B': 'b',
+                'KEY_N': 'n', 'KEY_M': 'm',
+                # Italian specific mappings
+                'KEY_SEMICOLON': 'ò', 'KEY_APOSTROPHE': 'à', 'KEY_COMMA': ',',
+                'KEY_PERIOD': '.', 'KEY_SLASH': '-', 'KEY_BACKSLASH': '\\',
+                'KEY_LEFTBRACE': 'è', 'KEY_RIGHTBRACE': '+', 'KEY_GRAVE': '\\',
+                'KEY_MINUS': "'", 'KEY_EQUAL': 'ì',
+                # Numbers on Italian layout
+                'KEY_1': '1', 'KEY_2': '2', 'KEY_3': '3', 'KEY_4': '4', 'KEY_5': '5',
+                'KEY_6': '6', 'KEY_7': '7', 'KEY_8': '8', 'KEY_9': '9', 'KEY_0': '0',
+                # Dead keys for Italian international
+                'KEY_DEAD_GRAVE': '`',      # Dead grave accent
+                'KEY_DEAD_ACUTE': "'",     # Dead acute accent  
+                'KEY_DEAD_CIRCUMFLEX': '^', # Dead circumflex
+                'KEY_DEAD_TILDE': '~',     # Dead tilde
+                'KEY_DEAD_DIAERESIS': '"', # Dead diaeresis (umlaut)
             },
             LayoutType.QWERTZ_DE: {
                 # Mapping for German QWERTZ layout
@@ -178,6 +263,7 @@ class KeyboardLayoutManager:
                 0x040C: (LayoutType.AZERTY_FR, "fr", "FR", "French"),
                 0x0407: (LayoutType.QWERTZ_DE, "de", "DE", "German"),
                 0x0807: (LayoutType.QWERTZ_CH, "de", "CH", "Swiss German"),
+                0x0410: (LayoutType.QWERTY_IT, "it", "IT", "Italian"),
             }
             
             if language_id in layout_map:
@@ -251,9 +337,115 @@ class KeyboardLayoutManager:
         except Exception:
             return LayoutInfo(LayoutType.QWERTY_US, "en", "US", "US QWERTY (Linux fallback)")
     
+    def process_key_input(self, char: str, layout_type: LayoutType = None) -> str:
+        """
+        Process a character input, handling dead key sequences.
+        Returns the final character to output.
+        """
+        if layout_type is None:
+            layout_type = self.current_layout.layout_type
+        
+        # Check if current input is a dead key
+        if self.is_dead_key(char, layout_type):
+            # Store the dead key and wait for next character
+            self.pending_dead_key = char
+            return ""  # Don't output anything yet
+        
+        # If we have a pending dead key, try to combine
+        if self.pending_dead_key:
+            result = self.resolve_dead_key_sequence(self.pending_dead_key, char, layout_type)
+            self.pending_dead_key = None  # Clear pending dead key
+            return result
+        
+        # Normal character
+        return char
+    
+    def clear_dead_key_state(self):
+        """Clear any pending dead key state"""
+        self.pending_dead_key = None
+    
+    def resolve_dead_key_sequence(self, dead_key: str, base_char: str, layout_type: LayoutType = None) -> str:
+        """Resolve a dead key + base character combination to the accented character"""
+        if layout_type is None:
+            layout_type = self.current_layout.layout_type
+        
+        combinations = self.dead_key_combinations.get(layout_type, [])
+        
+        for combination in combinations:
+            if combination.dead_key == dead_key and combination.base_char == base_char:
+                return combination.result_char
+        
+        # If no combination found, return the base character
+        return base_char
+    
+    def is_dead_key(self, char: str, layout_type: LayoutType = None) -> bool:
+        """Check if a character is a dead key for the given layout"""
+        if layout_type is None:
+            layout_type = self.current_layout.layout_type
+        
+        dead_keys = {'`', "'", '^', '~', '"'}  # Common dead keys
+        return char in dead_keys
+    
     def get_layout_info(self) -> LayoutInfo:
         """Get current layout information"""
         return self.current_layout
+    
+    def set_layout_type(self, layout_type):
+        """Manually set the layout type (useful for testing)"""
+        if isinstance(layout_type, str):
+            layout_type = LayoutType(layout_type)
+        
+        # Create a new layout info with the specified type
+        self.current_layout = LayoutInfo(
+            layout_type=layout_type,
+            language_code=self._get_language_code_for_layout(layout_type),
+            country_code=self._get_country_code_for_layout(layout_type),
+            layout_name=self._get_display_name_for_layout(layout_type)
+        )
+        
+        print(f"Layout manually set to: {layout_type.value}")
+    
+    def _get_language_code_for_layout(self, layout_type):
+        """Get appropriate language code for layout type"""
+        layout_map = {
+            LayoutType.QWERTY_US: 'en',
+            LayoutType.QWERTY_UK: 'en',
+            LayoutType.QWERTY_IT: 'it',
+            LayoutType.AZERTY_FR: 'fr',
+            LayoutType.QWERTZ_DE: 'de',
+            LayoutType.QWERTZ_CH: 'de',
+            LayoutType.DVORAK: 'en',
+            LayoutType.COLEMAK: 'en'
+        }
+        return layout_map.get(layout_type, 'en')
+    
+    def _get_country_code_for_layout(self, layout_type):
+        """Get appropriate country code for layout type"""
+        country_map = {
+            LayoutType.QWERTY_US: 'US',
+            LayoutType.QWERTY_UK: 'UK',
+            LayoutType.QWERTY_IT: 'IT',
+            LayoutType.AZERTY_FR: 'FR',
+            LayoutType.QWERTZ_DE: 'DE',
+            LayoutType.QWERTZ_CH: 'CH',
+            LayoutType.DVORAK: 'US',
+            LayoutType.COLEMAK: 'US'
+        }
+        return country_map.get(layout_type, 'US')
+    
+    def _get_display_name_for_layout(self, layout_type):
+        """Get display name for layout type"""
+        name_map = {
+            LayoutType.QWERTY_US: 'US QWERTY',
+            LayoutType.QWERTY_UK: 'UK QWERTY',
+            LayoutType.QWERTY_IT: 'Italian QWERTY',
+            LayoutType.AZERTY_FR: 'French AZERTY',
+            LayoutType.QWERTZ_DE: 'German QWERTZ',
+            LayoutType.QWERTZ_CH: 'Swiss QWERTZ',
+            LayoutType.DVORAK: 'Dvorak',
+            LayoutType.COLEMAK: 'Colemak'
+        }
+        return name_map.get(layout_type, 'Unknown Layout')
     
     def physical_key_to_char(self, physical_code: int, layout_type: LayoutType = None) -> str:
         """Convert physical key code to character for specified layout"""
