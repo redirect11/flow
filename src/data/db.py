@@ -15,11 +15,15 @@ class Settings:
     PASS = 'password'
     IP = 'IP'
     ENCRYPTION = 'encryption'
+    KEYBOARD_LAYOUT = 'keyboard_layout'
+    LAYOUT_AUTO_DETECT = 'layout_auto_detect'
 
     SERVER = 1
     CLIENT = 0
     ENCRYPTION_ON = 1
     ENCRYPTION_OFF = 0
+    LAYOUT_AUTO_ON = 1
+    LAYOUT_AUTO_OFF = 0
 
 
 class Screens:
@@ -45,7 +49,9 @@ DEFAULTS = {
     Settings.IP: "",
     Settings.PASS: "",
     Settings.PC: Settings.SERVER,
-    Settings.ENCRYPTION: Settings.ENCRYPTION_OFF
+    Settings.ENCRYPTION: Settings.ENCRYPTION_OFF,
+    Settings.KEYBOARD_LAYOUT: "qwerty_us",
+    Settings.LAYOUT_AUTO_DETECT: Settings.LAYOUT_AUTO_ON
 }
 
 
