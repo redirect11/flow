@@ -26,6 +26,10 @@ class SharedDevices:
         """
         On move event. Sends 'mov <mouse_position>' to client
         """
+        # Ensure mouse_position is valid before calculation
+        if self.machine.mouse_position is None:
+            self.machine.mouse_position = (0, 0)
+            
         self.machine.mouse_position = (self.machine.mouse_position[0] + x, self.machine.mouse_position[1] + y)
         self.socket.true_sendto(
             "mov " + str(self.machine.mouse_position[0]) + " " + str(self.machine.mouse_position[1]),

@@ -17,7 +17,8 @@ class Machine:
     """
 
     def __init__(self, metrics, attachments, tcp_conn=None, udp_conn=None, address=None, mpos=(100, 100)):
-        self.mouse_position = mpos
+        # Ensure mouse_position is never None
+        self.mouse_position = mpos if mpos is not None else (100, 100)
         self.metrics = metrics
         self.attachments = attachments
         self.tcp_conn = tcp_conn
@@ -29,6 +30,10 @@ class Machine:
         Returns machine at side near the mouse.
         If mouse is not at edge, returns None.
         """
+        # Ensure mouse_position is valid
+        if self.mouse_position is None:
+            return None
+            
         if self.mouse_position[0] < 5:
             return self.attachments[Screens.LEFT]
         if self.mouse_position[0] > self.metrics[0] - 5:
@@ -177,7 +182,14 @@ class Server(flowThread):
         """
         while self._running:
             if self.current == self.machines[self.NAME]:
-                self.machines[self.NAME].mouse_position = Controller().position
+                try:
+                    mouse_pos = Controller().position
+                    if mouse_pos is not None:
+                        self.machines[self.NAME].mouse_position = mouse_pos
+                    # If mouse_pos is None, keep the previous position
+                except Exception:
+                    # If there's an error getting mouse position, keep previous position
+                    pass
 
             try:
                 other = self.machines[self.current.at_edge()]
