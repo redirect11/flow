@@ -13,6 +13,8 @@ flow sends data through the local network, fast and securly, for you to have an 
 | Features | |
 |-----------|-|
 | Mouse and Keyboard Sharing | ✔️ |
+| International Keyboard Layout Support | ✔️ |
+| Dead Keys and Accented Characters | ✔️ |
 | Clipboard Sharing | ✔️ |
 | File Transfer | ✔️ |
 | Unlimited Devices | ✔️ |
@@ -52,6 +54,31 @@ flow sends data through the local network, fast and securly, for you to have an 
     2. `$ tar -xzf flow-1.0.3.tar.gz`
     3. `$ ./setup.sh`
     4. flow will be in your applications.
+
+
+## International Keyboard Support
+
+flow now supports advanced international keyboard layouts with full dead key support:
+
+### Supported Layouts
+- **QWERTY US** (English US)
+- **QWERTY UK** (English UK) 
+- **QWERTY IT** (Italian) - with dead keys support
+- **AZERTY FR** (French)
+- **QWERTZ DE** (German)
+- **QWERTZ CH** (Swiss)
+- **Dvorak**
+- **Colemak**
+
+### Dead Keys and Accented Characters
+For Italian layout users, flow supports full dead key sequences:
+- **Grave accent**: ` + a,e,i,o,u → à,è,ì,ò,ù
+- **Acute accent**: ' + a,e,i,o,u → á,é,í,ó,ú
+- **Circumflex**: ^ + a,e,i,o,u → â,ê,î,ô,û
+- **Tilde**: ~ + n → ñ
+- **Diaeresis**: " + a,e,i,o,u → ä,ë,ï,ö,ü
+
+The system automatically detects your keyboard layout and ensures correct character transmission between client and server machines, even with different layouts.
 
 
 ## Usage
